@@ -11,7 +11,10 @@ setup(
     packages=['system'],
     package_dir={'system': 'src'},
     # Needed for dependencies
-    install_requires=[],
+    install_requires=[
+        'versatuple @ git+https://github.com/ChipMcCallahan/Versatuple',
+        'sqlite3'
+    ],
     # *strongly* suggested for sharing
     version='0.1',
     # The license can be anything you like

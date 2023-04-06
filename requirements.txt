@@ -1,0 +1,5 @@
+###### Requirements without Version Specifiers ######`
+cc_tools@git+https://github.com/ChipMcCallahan/Versatuple.git
+sqlite3
+
+###### Requirements with Version Specifiers ######`
