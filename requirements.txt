@@ -1,5 +1,6 @@
 ###### Requirements without Version Specifiers ######`
 cc_tools@git+https://github.com/ChipMcCallahan/Versatuple.git
+pypika
 sqlite3
 
 ###### Requirements with Version Specifiers ######`
