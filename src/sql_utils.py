@@ -1,8 +1,8 @@
 """SQL utils."""
 # pylint: disable=invalid-name
 import os
-import pypika
 import sqlite3
+import pypika
 from versatuple import versatuple
 
 Table = versatuple("Table", ("name", "columns"))
@@ -35,15 +35,18 @@ class Db:
                 f"{path} does not exist and create is set to False.")
         self.path = path
 
+    def execute(self, query):
+        """Execute a query."""
+        with Db.SQLite(self.path) as cursor:
+            return cursor.execute(str(query))
+
     def create_table(self, table):
         """Create a new table."""
         # https://www.sqlitetutorial.net/sqlite-create-table/
         # https://github.com/kayak/pypika#creating-tables
-        with Db.SQLite(self.path) as cursor:
-            query_columns = [pypika.Column(c.name, c.type) for c in table.columns]
-            query = pypika.Query.create_table(table.name).columns(*query_columns)
-            for c in table.columns:
-                if c.is_key:
-                    query = query.primary_key(c.name)
-            print(query.get_sql)
-            cursor.execute(query.get_sql())
+        query_columns = [pypika.Column(c.name, c.type) for c in table.columns]
+        query = pypika.Query.create_table(table.name).columns(*query_columns)
+        for c in table.columns:
+            if c.is_key:
+                query = query.primary_key(c.name)
+        self.execute(query)

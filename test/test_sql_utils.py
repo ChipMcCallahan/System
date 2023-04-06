@@ -1,7 +1,6 @@
 """Tests for SqlUtils."""
 # pylint: disable=invalid-name
 
-import os
 import unittest
 import tempfile
 from src.sql_utils import Column, Table, Db
@@ -21,4 +20,3 @@ class TestSqlUtils(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdirname:
             db = Db(f"{tempdirname}/test.db", True)
             db.create_table(table)
-            print(os.listdir(tempdirname))
