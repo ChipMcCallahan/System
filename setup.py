@@ -13,8 +13,7 @@ setup(
     # Needed for dependencies
     install_requires=[
         'versatuple @ git+https://github.com/ChipMcCallahan/Versatuple',
-        'pypika',
-        'sqlite3'
+        'pypika'
     ],
     # *strongly* suggested for sharing
     version='0.1',
