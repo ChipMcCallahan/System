@@ -3,7 +3,7 @@
 from versatuple import versatuple
 
 Peglist = versatuple("Peglist", ("id", "peg", "word"))
-Palace = versatuple("Palace", ("region", "id", "peg", "room"))
+Palace = versatuple("Palace", ("id", "region", "peg", "room"))
 
 class SecondBrain:
     """Second Brain"""
