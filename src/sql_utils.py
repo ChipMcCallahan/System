@@ -4,12 +4,11 @@ import os
 import sqlite3
 from typing import Iterable
 import pypika
-from versatuple import versatuple
 
-Table = versatuple("Table", ("name", "columns"))
-
-Column = versatuple("Column", ("name", "type", "is_key"))
-
+def dict_factory(cursor, row):
+    """https://docs.python.org/3/library/sqlite3.html#sqlite3-howto-row-factory"""
+    fields = [column[0] for column in cursor.description]
+    return dict(zip(fields, row))
 
 class Db:
     """Utility class for working with SQLite databases."""
@@ -24,14 +23,14 @@ class Db:
 
         def __enter__(self):
             self.conn = sqlite3.connect(self.file)
-            self.conn.row_factory = sqlite3.Row
+            self.conn.row_factory = dict_factory
             return self.conn.cursor()
 
         def __exit__(self, _type, value, traceback):
             self.conn.commit()
             self.conn.close()
 
-    def __init__(self, path, create=False):
+    def __init__(self, path, *, create=False):
         if not create and not os.path.exists(path):
             raise ValueError(
                 f"{path} does not exist and create is set to False.")

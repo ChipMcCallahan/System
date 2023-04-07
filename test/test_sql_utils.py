@@ -6,14 +6,13 @@ import sqlite3
 import tempfile
 from src.sql_utils import Db
 
-CREATE_DB_IF_NOT_PRESENT = True
 class TestSqlUtils(unittest.TestCase):
     """Tests for SqlUtils"""
 
     def test_create_table(self):
         """Test Create Table."""
         with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db = Db(f"{tempdirname}/test.db", create=True)
             db.create_table("Vehicle", (("id", "INTEGER"),
                                         ("make", "TEXT"),
                                         ("model", "TEXT"),
@@ -21,7 +20,7 @@ class TestSqlUtils(unittest.TestCase):
             self.assertEqual(len(db.list_tables()), 1)
 
         with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db = Db(f"{tempdirname}/test.db", create=True)
             db.create_table("Vehicle", (("id", "INTEGER"),
                                         ("make", "TEXT"),
                                         ("model", "TEXT", False),
@@ -33,7 +32,7 @@ class TestSqlUtils(unittest.TestCase):
     def test_list_tables(self):
         """Test List Tables"""
         with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db = Db(f"{tempdirname}/test.db", create=True)
             db.create_table("Vehicle", (("id", "INTEGER"),))
             db.create_table("Person", (("id", "INTEGER"),))
             db.create_table("Country", (("id", "INTEGER"),))
@@ -42,7 +41,7 @@ class TestSqlUtils(unittest.TestCase):
     def test_describe_table(self):
         """Test Describe Tables"""
         with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db = Db(f"{tempdirname}/test.db", create=True)
             db.create_table("Vehicle", (("id", "INTEGER"),
                                         ("make", "TEXT"),
                                         ("model", "TEXT"),
@@ -54,7 +53,7 @@ class TestSqlUtils(unittest.TestCase):
     def test_insert(self):
         """Test Insert"""
         with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db = Db(f"{tempdirname}/test.db", create=True)
             db.create_table("Person", (("name", "STRING"), ("age", "INTEGER")))
             db.insert("Person", (("Chip", 33), ("Melinda", 34)))
             self.assertSetEqual(
@@ -64,7 +63,7 @@ class TestSqlUtils(unittest.TestCase):
     def test_pk_unique(self):
         """Test PK uniqueness enforced"""
         with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db = Db(f"{tempdirname}/test.db", create=True)
             db.create_table("Peglist", (("id", "INTEGER"), ("peg", "TEXT"), ("word", "TEXT")),
                             primary_keys=("id",))
             db.insert("Peglist", ((0, "000", "soy-sauce")))
