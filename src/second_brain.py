@@ -68,7 +68,7 @@ class PeglistTable(SecondBrain):
         id = existing[0].id if len(existing) == 1 else self.next_id()
         self.replace_by_id(Peglist(id, peg, word))
 
-    def get(self, peg_or_id: str | int):
+    def get(self, peg_or_id):
         """Get word for {peg}"""
         kw = "peg" if isinstance(peg_or_id, str) else "id"
         result = self.get_where(f"{kw} = {self.add_quote_if_str(peg_or_id)}")
@@ -78,4 +78,4 @@ class PeglistTable(SecondBrain):
 
     def validate(self):
         """Validate the data in this table."""
-        
+        # TODO: implement me
