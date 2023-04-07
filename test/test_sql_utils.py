@@ -2,6 +2,7 @@
 # pylint: disable=invalid-name
 
 import unittest
+import sqlite3
 import tempfile
 from src.sql_utils import Db
 
@@ -59,3 +60,13 @@ class TestSqlUtils(unittest.TestCase):
             self.assertSetEqual(
                 {(row['name'], row['age']) for row in db.select_all("Person")},
                 {("Chip", 33), ("Melinda", 34)})
+
+    def test_pk_unique(self):
+        """Test PK uniqueness enforced"""
+        with tempfile.TemporaryDirectory() as tempdirname:
+            db = Db(f"{tempdirname}/test.db", CREATE_DB_IF_NOT_PRESENT)
+            db.create_table("Peglist", (("id", "INTEGER"), ("peg", "TEXT"), ("word", "TEXT")),
+                            primary_keys=("id",))
+            db.insert("Peglist", ((0, "000", "soy-sauce")))
+            with self.assertRaises(sqlite3.IntegrityError):
+                db.insert("Peglist", ((0, "001", "siesta")))
