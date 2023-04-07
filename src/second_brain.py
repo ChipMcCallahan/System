@@ -68,14 +68,12 @@ class PeglistTable(SecondBrain):
         id = existing[0].id if len(existing) == 1 else self.next_id()
         self.replace_by_id(Peglist(id, peg, word))
 
-    def get(self, peg_or_id):
+    def get(self, peg_or_id=None):
         """Get word for {peg}"""
+        if not peg_or_id:
+            return self.select_all()
         kw = "peg" if isinstance(peg_or_id, str) else "id"
         result = self.get_where(f"{kw} = {self.add_quote_if_str(peg_or_id)}")
         if len(result) > 1:
             raise ValueError(f"Found duplicate pegs {result}")
         return result[0] if len(result) > 0 else None
-
-    def validate(self):
-        """Validate the data in this table."""
-        # TODO: implement me
