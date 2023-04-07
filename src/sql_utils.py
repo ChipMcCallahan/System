@@ -2,6 +2,7 @@
 # pylint: disable=invalid-name
 import os
 import sqlite3
+from typing import Iterable
 import pypika
 from versatuple import versatuple
 
@@ -23,6 +24,7 @@ class Db:
 
         def __enter__(self):
             self.conn = sqlite3.connect(self.file)
+            self.conn.row_factory = sqlite3.Row
             return self.conn.cursor()
 
         def __exit__(self, _type, value, traceback):
@@ -38,15 +40,54 @@ class Db:
     def execute(self, query):
         """Execute a query."""
         with Db.SQLite(self.path) as cursor:
-            return cursor.execute(str(query))
+            return cursor.execute(str(query)).fetchall() # Return results first...
 
-    def create_table(self, table):
-        """Create a new table."""
-        # https://www.sqlitetutorial.net/sqlite-create-table/
+    def list_tables(self):
+        """List all tables present."""
+        master = pypika.Table('sqlite_master')
+        query = pypika.Query.select(master.name) \
+                        .from_(master) \
+                        .where(master.type == "table")
+        with Db.SQLite(self.path) as cursor:
+            return [row['name'] for row in cursor.execute(str(query)).fetchall()]
+
+    def create_table(self, table: str, columns: Iterable[tuple], *,
+                     primary_keys: Iterable[str] = (),
+                     unique: Iterable[str] = ()):
+        """Create a new table, if it doesn't exist already."""
         # https://github.com/kayak/pypika#creating-tables
-        query_columns = [pypika.Column(c.name, c.type) for c in table.columns]
-        query = pypika.Query.create_table(table.name).columns(*query_columns)
-        for c in table.columns:
-            if c.is_key:
-                query = query.primary_key(c.name)
-        self.execute(query)
+        if table in self.list_tables():
+            raise ValueError(f"{table} already exists.")
+        query = pypika.Query.create_table(table) \
+                            .columns(*[pypika.Column(*column)
+                                       for column in columns])
+        if len(primary_keys) > 0:
+            query = query.primary_key(*primary_keys)
+        if len(unique) > 0:
+            query = query.unique(*unique)
+        # IF NOT EXISTS is not supported here. Manually check.
+        with Db.SQLite(self.path) as cursor:
+            cursor.execute(str(query))
+
+    def describe_table(self, table: str):
+        """Describe the table format."""
+        master = pypika.Table('sqlite_master')
+        query = pypika.Query.select(master.sql) \
+                        .from_(master) \
+                        .where(master.name == table)
+        with Db.SQLite(self.path) as cursor:
+            return cursor.execute(str(query)).fetchone()['sql']
+
+    def insert(self, table: str, values):
+        """Insert one or more values into a table."""
+        table = pypika.Table(table)
+        query = pypika.Query.into(table).insert(*values)
+        with Db.SQLite(self.path) as cursor:
+            cursor.execute(str(query))
+
+    def select_all(self, table:str):
+        """Select all rows from a table."""
+        table = pypika.Table(table)
+        query = pypika.Query.select(table.star).from_(table)
+        with Db.SQLite(self.path) as cursor:
+            return cursor.execute(str(query)).fetchall()
