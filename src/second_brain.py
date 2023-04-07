@@ -3,7 +3,7 @@
 from versatuple import versatuple
 
 Peglist = versatuple("Peglist", ("id", "peg", "word"))
-
+Palace = versatuple("Palace", ("region", "id", "peg", "room"))
 
 class SecondBrain:
     """Second Brain"""
@@ -77,3 +77,13 @@ class PeglistTable(SecondBrain):
         if len(result) > 1:
             raise ValueError(f"Found duplicate pegs {result}")
         return result[0] if len(result) > 0 else None
+
+class PalaceTable(SecondBrain):
+    """Palace Table"""
+    def __init__(self, db):
+        super().__init__(db)
+        self.table = "Palace"
+
+    def convert(self, row):
+        """Convert a row to a Palace object."""
+        return Palace(row["region"], row["id"], row["peg"], row["room"])
