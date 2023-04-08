@@ -4,6 +4,7 @@ from versatuple import versatuple
 
 Peglist = versatuple("Peglist", ("id", "peg", "word"))
 Palace = versatuple("Palace", ("id", "region", "peg", "room"))
+MonthDay = versatuple("MonthDay", ("id", "celebrity", "color"))
 
 class SecondBrain:
     """Second Brain"""
