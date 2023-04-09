@@ -9,63 +9,54 @@ from src.sql_utils import Db
 class TestSqlUtils(unittest.TestCase):
     """Tests for SqlUtils"""
 
-    def test_create_table(self):
+    def test_create(self):
         """Test Create Table."""
         with tempfile.TemporaryDirectory() as tempdirname:
             db = Db(f"{tempdirname}/test.db", create=True)
-            db.create_table("Vehicle", (("id", "INTEGER"),
-                                        ("make", "TEXT"),
-                                        ("model", "TEXT"),
-                                        ("miles", "INTEGER")))
-            self.assertEqual(len(db.list_tables()), 1)
+            db.create("Vehicle", "id INTEGER PRIMARY KEY", "make TEXT NOT NULL",
+                                 "model TEXT UNIQUE", "miles INTEGER")
+            self.assertEqual(len(db.list()), 1)
 
-        with tempfile.TemporaryDirectory() as tempdirname:
-            db = Db(f"{tempdirname}/test.db", create=True)
-            db.create_table("Vehicle", (("id", "INTEGER"),
-                                        ("make", "TEXT"),
-                                        ("model", "TEXT", False),
-                                        ("miles", "INTEGER", True)),
-                                        primary_keys=("id",),
-                                        unique=("make",))
-            self.assertEqual(len(db.list_tables()), 1)
-
-    def test_list_tables(self):
+    def test_list(self):
         """Test List Tables"""
         with tempfile.TemporaryDirectory() as tempdirname:
             db = Db(f"{tempdirname}/test.db", create=True)
-            db.create_table("Vehicle", (("id", "INTEGER"),))
-            db.create_table("Person", (("id", "INTEGER"),))
-            db.create_table("Country", (("id", "INTEGER"),))
-            self.assertEqual(set(db.list_tables()), {"Vehicle", "Person", "Country"})
+            db.create("Vehicle", "id INTEGER PRIMARY KEY")
+            db.create("Person", "id INTEGER PRIMARY KEY")
+            db.create("Country", "id INTEGER PRIMARY KEY")
+            self.assertEqual(set(db.list()), {"Vehicle", "Person", "Country"})
 
-    def test_describe_table(self):
+    def test_describe(self):
         """Test Describe Tables"""
         with tempfile.TemporaryDirectory() as tempdirname:
             db = Db(f"{tempdirname}/test.db", create=True)
-            db.create_table("Vehicle", (("id", "INTEGER"),
-                                        ("make", "TEXT"),
-                                        ("model", "TEXT"),
-                                        ("miles", "INTEGER")))
-            result = db.describe_table("Vehicle")
-            self.assertEqual(result, ('CREATE TABLE "Vehicle" '
-                                      '("id" INTEGER,"make" TEXT,"model" TEXT,"miles" INTEGER)'))
+            db.create("Vehicle", "id INTEGER PRIMARY KEY", "make TEXT NOT NULL",
+                                 "model TEXT UNIQUE", "miles INTEGER")
+            result = db.describe("Vehicle")
+            self.assertEqual(result, ('CREATE TABLE Vehicle(id INTEGER PRIMARY KEY,'
+                                      'make TEXT NOT NULL,'
+                                      'model TEXT UNIQUE,'
+                                      'miles INTEGER) WITHOUT ROWID'))
 
     def test_insert(self):
         """Test Insert"""
         with tempfile.TemporaryDirectory() as tempdirname:
             db = Db(f"{tempdirname}/test.db", create=True)
-            db.create_table("Person", (("name", "STRING"), ("age", "INTEGER")))
-            db.insert("Person", (("Chip", 33), ("Melinda", 34)))
-            self.assertSetEqual(
-                {(row['name'], row['age']) for row in db.select_all("Person")},
-                {("Chip", 33), ("Melinda", 34)})
+            db.create("Person", "name TEXT PRIMARY KEY", "age INTEGER")
+            db.put("Person", ("Chip", 33), ("Melinda", 34))
+            self.assertEqual(db.all("Person"),
+                [{"name": "Chip", "age": 33}, {"name": "Melinda", "age": 34}])
 
-    def test_pk_unique(self):
-        """Test PK uniqueness enforced"""
+    def test_pk_unique_notnull(self):
+        """Test PRIMARY KEY, UNIQUE, and NOT NULL enforced"""
         with tempfile.TemporaryDirectory() as tempdirname:
             db = Db(f"{tempdirname}/test.db", create=True)
-            db.create_table("Peglist", (("id", "INTEGER"), ("peg", "TEXT"), ("word", "TEXT")),
-                            primary_keys=("id",))
-            db.insert("Peglist", ((0, "000", "soy-sauce")))
+            db.create("Person", "name TEXT PRIMARY KEY", "age INTEGER UNIQUE",
+                                "id INTEGER NOT NULL")
+            db.put("Person", ("Joshua", 34, 1))
             with self.assertRaises(sqlite3.IntegrityError):
-                db.insert("Peglist", ((0, "001", "siesta")))
+                db.put("Person", ("Joshua", 35, 1))
+            with self.assertRaises(sqlite3.IntegrityError):
+                db.put("Person", ("Jessica", 34, 1))
+            with self.assertRaises(sqlite3.IntegrityError):
+                db.run("INSERT INTO Person(name, age) VALUES ('Jessica', 35)")

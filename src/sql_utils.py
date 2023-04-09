@@ -1,9 +1,7 @@
-"""SQL utils."""
+"""Personal SQL utils. NOT SQL injection safe."""
 # pylint: disable=invalid-name
 import os
 import sqlite3
-from typing import Iterable
-import pypika
 
 def dict_factory(cursor, row):
     """https://docs.python.org/3/library/sqlite3.html#sqlite3-howto-row-factory"""
@@ -11,7 +9,7 @@ def dict_factory(cursor, row):
     return dict(zip(fields, row))
 
 class Db:
-    """Utility class for working with SQLite databases."""
+    """Utility class for working with SQLite databases. NOT SQL Injection safe!"""
 
     class SQLite:
         """SQLite Wrapper supporting auto-commit and auto-close. 
@@ -36,57 +34,35 @@ class Db:
                 f"{path} does not exist and create is set to False.")
         self.path = path
 
-    def execute(self, query):
-        """Execute a query."""
-        with Db.SQLite(self.path) as cursor:
-            return cursor.execute(str(query)).fetchall() # Return results first...
-
-    def list_tables(self):
-        """List all tables present."""
-        master = pypika.Table('sqlite_master')
-        query = pypika.Query.select(master.name) \
-                        .from_(master) \
-                        .where(master.type == "table")
-        with Db.SQLite(self.path) as cursor:
-            return [row['name'] for row in cursor.execute(str(query)).fetchall()]
-
-    def create_table(self, table: str, columns: Iterable[tuple], *,
-                     primary_keys: Iterable[str] = (),
-                     unique: Iterable[str] = ()):
-        """Create a new table, if it doesn't exist already."""
-        # https://github.com/kayak/pypika#creating-tables
-        if table in self.list_tables():
-            raise ValueError(f"{table} already exists.")
-        query = pypika.Query.create_table(table) \
-                            .columns(*[pypika.Column(*column)
-                                       for column in columns])
-        if len(primary_keys) > 0:
-            query = query.primary_key(*primary_keys)
-        if len(unique) > 0:
-            query = query.unique(*unique)
-        # IF NOT EXISTS is not supported here. Manually check.
-        with Db.SQLite(self.path) as cursor:
-            cursor.execute(str(query))
-
-    def describe_table(self, table: str):
-        """Describe the table format."""
-        master = pypika.Table('sqlite_master')
-        query = pypika.Query.select(master.sql) \
-                        .from_(master) \
-                        .where(master.name == table)
-        with Db.SQLite(self.path) as cursor:
-            return cursor.execute(str(query)).fetchone()['sql']
-
-    def insert(self, table: str, values):
-        """Insert one or more values into a table."""
-        table = pypika.Table(table)
-        query = pypika.Query.into(table).insert(*values)
-        with Db.SQLite(self.path) as cursor:
-            cursor.execute(str(query))
-
-    def select_all(self, table:str):
-        """Select all rows from a table."""
-        table = pypika.Table(table)
-        query = pypika.Query.select(table.star).from_(table)
+    def run(self, query):
+        """Run a query."""
         with Db.SQLite(self.path) as cursor:
             return cursor.execute(str(query)).fetchall()
+
+    def create(self, table, *columns):
+        """Create a table."""
+        query = f"CREATE TABLE IF NOT EXISTS {table}({','.join(columns)}) WITHOUT ROWID;"
+        self.run(query)
+
+    def list(self):
+        """List all tables present."""
+        query = "SELECT name FROM sqlite_master WHERE type = 'table'"
+        return [t['name'] for t in self.run(query)]
+
+    def describe(self, table: str):
+        """Describe the table format."""
+        query = f"SELECT sql FROM sqlite_master WHERE name = '{table}'"
+        return self.run(query)[0]['sql']
+
+    def put(self, table: str, *values):
+        """Insert one or more values into a table."""
+        query = f"INSERT INTO {table} VALUES {','.join(str(v) for v in values)}"
+        self.run(query)
+
+    def all(self, table:str):
+        """Select all rows from a table."""
+        return self.run(f"SELECT * FROM {table}")
+
+    def rename(self, table: str, name: str):
+        """Rename a table."""
+        self.run(f"ALTER TABLE {table} RENAME TO {name}")
