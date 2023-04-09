@@ -46,8 +46,8 @@ class SanityChecker:
         invalid_words = {p for p in pegwords if not valid_name.match(p['word'])}
         invalid_sites = {p for p in pegsites if not (valid_name.match(p['region'])
                                                      and valid_name.match(p['site']))}
-        invalid_dates = {p for p in pegdates if not (valid_name.match(p['region'])
-                                                     and valid_name.match(p['site']))}
+        invalid_dates = {p for p in pegdates if not (valid_name.match(p['color'])
+                                                     and valid_name.match(p['celebrity']))}
 
         test = "pegpalace-regex"
         fail = f"Failed regex in {invalid_words} {invalid_sites} {invalid_dates}"
