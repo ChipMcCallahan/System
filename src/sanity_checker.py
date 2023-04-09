@@ -1,7 +1,7 @@
 """Sanity checks for system."""
 # pylint: disable=invalid-name,too-few-public-methods,too-many-locals
 import re
-PEGWORD, PEGSITE, PEGDATE = "PegWord", "PegSite", "PegDate"
+PEGWORD, PEGSITE, PEGDATE = "Pegword", "Pegsite", "Pegdate"
 class SanityChecker:
     """Sanity checker for system"""
     def __init__(self, db):
@@ -9,7 +9,7 @@ class SanityChecker:
         self.passing = []
         self.failing = []
 
-    def do_checks(self):
+    def check(self):
         """Perform all sanity checks and print result."""
         self.__check_pegpalace()
         print(f"Sanity checks complete: {len(self.passing)} passed, {len(self.failing)} failed.")
@@ -24,9 +24,9 @@ class SanityChecker:
         return condition
 
     def __check_pegpalace(self):
-        pegwords = self.db.select_all(PEGWORD)
-        pegsites = self.db.select_all(PEGSITE)
-        pegdates = self.db.select_all(PEGDATE)
+        pegwords = self.db.all(PEGWORD)
+        pegsites = self.db.all(PEGSITE)
+        pegdates = self.db.all(PEGDATE)
 
         wordpegs = {p['peg'] for p in pegwords}
         sitepegs = {p['peg'] for p in pegsites}
