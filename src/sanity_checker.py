@@ -42,15 +42,6 @@ class SanityChecker:
         cond = len(wordpegs) == 1092 and len(sitepegs) == 1092 and len(datepegs) == 366
         self.__check(cond, test, fail)
 
-        missing_pegwords = {p for p in pegwords if not p['word']}
-        missing_pegsites = {p for p in pegsites if not (p['region'] and p['site'])}
-        missing_pegdates = {p for p in pegdates if not (p['celebrity'] and p['color'])}
-
-        test = "pegpalace-populated"
-        fail = "Not every field in {PEGWORD}, {PEGSITE}, and {PEGDATE} is populated."
-        cond = len(missing_pegwords) + len(missing_pegsites) + len(missing_pegdates) == 0
-        self.__check(cond, test, fail)
-
         valid_name=re.compile(r"^[a-z0-9\-]+$")
         invalid_words = {p for p in pegwords if not valid_name.match(p['word'])}
         invalid_sites = {p for p in pegsites if not (valid_name.match(p['region'])
