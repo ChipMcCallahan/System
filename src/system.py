@@ -2,6 +2,7 @@
 # pylint: disable=invalid-name,too-few-public-methods
 
 import datetime
+import pytz
 from dateutil.parser import parse
 
 WORKOUT = "Workout"
@@ -12,11 +13,17 @@ class System:
     def __init__(self, db):
         self.db = db
 
+    @staticmethod
+    def today():
+        """Return today in PST."""
+        return datetime.datetime.now(pytz.timezone('US/Pacific')).date()
+
+
     def log(self, code, description="", *, date=None, new_code=False, multiple=False):
         """Log something. Specify new_code=True to allow this to be a code
         not currently in the table. Specify multiple=True to allow multiple
         writes for this (date, code) combo. Specify date and description as needed."""
-        date = str(parse(date).date() if date else datetime.date.today())
+        date = str(parse(date).date() if date else self.today())
         if not multiple:
             existing = self.db.run(f"SELECT * FROM {LOGS} "
                                    f"WHERE date = '{date}' AND code = '{code}';")
@@ -35,7 +42,7 @@ class System:
     def log_ride(self, miles, *, date=None, overwrite=False):
         """Log a bike ride. Default is today, pass date= to change. Adds to existing 
            unless overwrite is True. """
-        date = str(parse(date).date() if date else datetime.date.today())
+        date = str(parse(date).date() if date else self.today())
         ex = 'ride'
         amt = miles
         existing = self.db.run(f"SELECT * FROM {WORKOUT} "

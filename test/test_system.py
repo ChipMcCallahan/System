@@ -3,7 +3,6 @@
 
 import unittest
 import tempfile
-from datetime import date
 from src.sql_utils import Db
 from src.system import System
 
@@ -25,7 +24,7 @@ class TestSystem(unittest.TestCase):
             sys.log("new-code", new_code=True)
             self.assertEqual(db.all("Logs"),
                                 [{"id": 0,
-                                  "date": str(date.today()),
+                                  "date": str(System.today()),
                                   "code": "new-code",
                                   "description": ""}])
             with self.assertRaises(ValueError) as err:
@@ -34,11 +33,11 @@ class TestSystem(unittest.TestCase):
             sys.log("new-code", multiple=True)
             self.assertEqual(db.all("Logs"),
                                 [{"id": 0,
-                                  "date": str(date.today()),
+                                  "date": str(System.today()),
                                   "code": "new-code",
                                   "description": ""},
                                   {"id": 1,
-                                  "date": str(date.today()),
+                                  "date": str(System.today()),
                                   "code": "new-code",
                                   "description": ""}])
             db.run("DELETE FROM Logs WHERE True;")
@@ -60,22 +59,22 @@ class TestSystem(unittest.TestCase):
             sys = System(db)
             sys.log_ride(4)
             self.assertEqual(db.all("Workout"),
-                                [{"date": str(date.today()),
+                                [{"date": str(System.today()),
                                 "exercise": "ride",
                                 "amount": 4}])
             sys.log_ride(6.32)
             self.assertEqual(db.all("Workout"),
-                                [{"date": str(date.today()),
+                                [{"date": str(System.today()),
                                 "exercise": "ride",
                                 "amount": 10.32}])
             sys.log_ride(7, overwrite=True)
             self.assertEqual(db.all("Workout"),
-                                [{"date": str(date.today()),
+                                [{"date": str(System.today()),
                                 "exercise": "ride",
                                 "amount": 7}])
             sys.log_ride(6, date="1984-01-23")
             self.assertCountEqual(db.all("Workout"),
-                                [{"date": str(date.today()),
+                                [{"date": str(System.today()),
                                 "exercise": "ride",
                                 "amount": 7},
                                 {"date": "1984-01-23",
