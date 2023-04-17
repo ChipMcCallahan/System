@@ -1,6 +1,6 @@
 """Overdue checks for system."""
 # pylint: disable=invalid-name,too-few-public-methods,too-many-locals
-from src.system import System
+from .system import System
 
 CYCLIC, LOGS = "Cyclic", "Logs"
 
