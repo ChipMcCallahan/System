@@ -1,5 +1,5 @@
 """SheetsHelper class, for use in Colab notebooks."""
-# pylint: disable=invalid-name,too-few-public-methods,protected-access,import-error,dangerous-default-value
+# pylint: disable=invalid-name,too-few-public-methods,undefined-variable,exec-used,protected-access,import-error,dangerous-default-value
 
 # from google.colab import auth
 # from google.auth import default
@@ -39,6 +39,21 @@ class SheetsHelper:
         }
     )
 
+    @staticmethod
+    def new():
+        """Very naughty code which runs an authorization script using exec.
+           Returns a SheetsHelper object."""
+        for line in (
+            "from google.colab import auth",
+            "import gspread",
+            "from google.auth import default",
+            "auth.authenticate_user()",
+            "creds, _ = default()",
+            "tgc = gspread.authorize(creds)" 
+        ):
+            exec(line)
+            return SheetsHelper(tgc)
+
     def sheet(self, name, *, default_wsheets=DEFAULT_WSHEETS,
                              col_width=COL_WIDTH, default_n_rows=DEFAULT_N_ROWS):
         '''Create a new sheet with default worksheets.'''
@@ -50,3 +65,8 @@ class SheetsHelper:
             for wsheet in wsheets:
                 self._resize_all_columns(sheet, wsheet, col_width)
         sheet.del_worksheet(sheet.worksheet("Sheet1"))
+
+    def read(self, sheet, wsheet):
+        """Read all rows from {sheet}/{wsheet} as tuples."""
+        sheet = sheet if sheet.startswith('s.') else 's.' + sheet
+        return self.gc.open(sheet).worksheet(wsheet).get_all_values()
