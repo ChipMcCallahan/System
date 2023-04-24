@@ -51,7 +51,7 @@ class SheetsHelper:
             "creds, _ = default()",
             "global tgc; tgc = gspread.authorize(creds)" 
         ):
-            exec(line, globals(), globals())
+            exec(line, globals())
             return SheetsHelper(tgc)
 
     def sheet(self, name, *, default_wsheets=DEFAULT_WSHEETS,
