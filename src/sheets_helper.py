@@ -39,21 +39,6 @@ class SheetsHelper:
         }
     )
 
-    @staticmethod
-    def new():
-        """Very naughty code which runs an authorization script using exec.
-           Returns a SheetsHelper object."""
-        for line in (
-            "from google.colab import auth",
-            "import gspread",
-            "from google.auth import default",
-            "auth.authenticate_user()",
-            "creds, _ = default()",
-            "global tgc; tgc = gspread.authorize(creds)" 
-        ):
-            exec(line, globals())
-            return SheetsHelper(tgc)
-
     def sheet(self, name, *, default_wsheets=DEFAULT_WSHEETS,
                              col_width=COL_WIDTH, default_n_rows=DEFAULT_N_ROWS):
         '''Create a new sheet with default worksheets.'''
