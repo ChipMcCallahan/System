@@ -49,7 +49,7 @@ class SheetsHelper:
             "from google.auth import default",
             "auth.authenticate_user()",
             "creds, _ = default()",
-            "tgc = gspread.authorize(creds)" 
+            "global tgc; tgc = gspread.authorize(creds)" 
         ):
             exec(line)
             return SheetsHelper(tgc)
