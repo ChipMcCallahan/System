@@ -23,6 +23,11 @@ class System:
         """Return today in PST."""
         return self.overdueChecker.today()
 
+    def log_all(self, *codes):
+        """Log all supplied codes for today."""
+        for code in codes:
+            self.log(code)
+
     def log(self, code, description="", *, date=None, new_code=False, multiple=False):
         """Log something. Specify new_code=True to allow this to be a code
         not currently in the table. Specify multiple=True to allow multiple
@@ -55,3 +60,14 @@ class System:
             amt += float(existing[0]['amount'])
         self.db.run(f"DELETE FROM {WORKOUT} WHERE exercise = '{ex}' and date = '{date}'")
         self.db.run(f"INSERT INTO {WORKOUT} VALUES ('{date}', '{ex}', '{amt}')")
+
+    def log_pool_specs(self, cl, ph, alk=None):
+        """Log pH, Cl, and (optionally) alkalinity."""
+        self.log("pool-cl", cl, new_code=True)
+        self.log("pool-ph", ph, new_code=True)
+        if alk is not None:
+            self.log("pool-alk", alk)
+
+    def log_pool_notes(self, note):
+        """Log notes for pool (e.g. chem adds)."""
+        self.log("pool-notes", note)
