@@ -38,8 +38,9 @@ class HarborMaster:
 
         values = []
         for row in rows:
-            values.append(str(tuple(row[key] for key in keys)))
-        print(','.join(values))
+            # values.append(str(tuple(row[key] for key in keys)))
+            quoted = tuple(f"'{row[key]}'" for key in keys)
+            values.append(f"({','.join(quoted)})")
         self.db.run(f"INSERT INTO {table} VALUES {','.join(values)}")
 
     def create_and_populate_global_table(self, name):
