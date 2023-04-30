@@ -1,6 +1,7 @@
 """Overdue checks for system."""
 # pylint: disable=invalid-name,too-few-public-methods,too-many-locals
-from .system import System
+import datetime
+import pytz
 
 CYCLIC, LOGS = "Cyclic", "Logs"
 
@@ -9,23 +10,28 @@ class OverdueChecker:
     def __init__(self, db):
         self.db = db
 
+    @staticmethod
+    def today():
+        """Return today in PST."""
+        return datetime.datetime.now(pytz.timezone('US/Pacific')).date()
+
     def check(self):
         """Perform all overdue checks and print result."""
         query = (
             f"SELECT "
-            f"  Cyclic.code, "
+            f"  [cyc].item, "
             f"  max_date, "
-            f"  CAST(julianday('{System.today()}') - julianday(max_date) AS INTEGER) AS stale, "
-            f"  Cyclic.days "
-            f"FROM Cyclic "
-            f"  LEFT JOIN (SELECT code, MAX(date) AS max_date "
+            f"  CAST(julianday('{self.today()}') - julianday(max_date) AS INTEGER) AS stale, "
+            f"  CAST([cyc].days AS INTEGER) AS days "
+            f"FROM [cyc] "
+            f"  LEFT JOIN (SELECT item, MAX(date) AS max_date "
             f"             FROM Logs GROUP BY 1) AS MaxLogs "
-            f"  ON Cyclic.code = MaxLogs.code"
+            f"  ON [cyc].code = MaxLogs.code"
         )
         current_state = self.db.run(query)
         overdue = []
         for item in current_state:
-            code = item['code']
+            code = item['item']
             stale_days = item['stale'] if item['stale'] is not None else 1000
             amount_overdue = stale_days / item['days']
             if amount_overdue >= 1:

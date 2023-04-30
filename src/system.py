@@ -1,23 +1,27 @@
 """System class"""
 # pylint: disable=invalid-name,too-few-public-methods
 
-import datetime
-import pytz
 from dateutil.parser import parse
+from .harbormaster import HarborMaster
+from .overdue_checker import OverdueChecker
 
 WORKOUT = "Workout"
 LOGS = "Logs"
 
 class System:
     """System class"""
-    def __init__(self, db):
+    def __init__(self, db, gc):
         self.db = db
+        self.harborMaster = HarborMaster(gc, db)
+        self.overdueChecker = OverdueChecker(db)
 
-    @staticmethod
-    def today():
+    def overdue_check(self):
+        """Perform all overdue checks and print result."""
+        return self.overdueChecker.check
+
+    def today(self):
         """Return today in PST."""
-        return datetime.datetime.now(pytz.timezone('US/Pacific')).date()
-
+        return self.overdueChecker.today()
 
     def log(self, code, description="", *, date=None, new_code=False, multiple=False):
         """Log something. Specify new_code=True to allow this to be a code

@@ -6,8 +6,8 @@ COL_WIDTH = 500
 DEFAULT_N_ROWS = 100
 class SheetsHelper:
     """SheetsHelper class, for use in Colab notebooks."""
-    def __init__(self, creds):
-        self.gc = creds
+    def __init__(self, gc):
+        self.gc = gc
 
     @staticmethod
     def _resize_all_columns(sheet, wsheet, size):

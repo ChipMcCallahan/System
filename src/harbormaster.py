@@ -6,10 +6,10 @@ GLOBAL_TABLES = {"readme", "todo", "ref", "cyc"}
 
 class HarborMaster:
     """HarborMaster class."""
-    def __init__(self, creds, db):
-        self.gc = creds
+    def __init__(self, gc, db):
+        self.gc = gc
         self.db = db
-        self.sheetsHelper = SheetsHelper(creds)
+        self.sheetsHelper = SheetsHelper(gc)
         self.populate_harbor_db()
 
     def read(self, sheet, wsheet):
