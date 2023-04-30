@@ -41,7 +41,7 @@ class SheetsHelper:
 
     def sheet(self, name, *, default_wsheets=DEFAULT_WSHEETS,
                              col_width=COL_WIDTH, default_n_rows=DEFAULT_N_ROWS):
-        '''Create a new sheet with default worksheets.'''
+        """Create a new sheet with default worksheets."""
         name = name if name.startswith("s.") else "s." + name
         sheet = self.gc.create(name)
         wsheets = []
@@ -52,6 +52,15 @@ class SheetsHelper:
         sheet.del_worksheet(sheet.worksheet("Sheet1"))
 
     def read(self, sheet, wsheet):
-        """Read all rows from {sheet}/{wsheet} as tuples."""
-        sheet = sheet if sheet.startswith('s.') else 's.' + sheet
-        return self.gc.open(sheet).worksheet(wsheet).get_all_values()
+        """Return rows as a list of dicts, with first row being the keys"""
+        all_rows = self.gc.open(sheet).worksheet(wsheet).get_all_values()
+        columns = all_rows[0]
+        objects = []
+        for row in all_rows[1:]:
+            if all(elem == '' for elem in row): # Skip empty rows.
+                continue
+            obj = {}
+            for i, col in enumerate(columns):
+                obj[col] = row[i]
+            objects.append(obj)
+        return objects
