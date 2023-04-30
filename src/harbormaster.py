@@ -1,6 +1,8 @@
 """HarborMaster class."""
-# pylint: disable=invalid-name,line-too-long
+# pylint: disable=invalid-name,line-too-long,expression-not-assigned
 from .sheets_helper import SheetsHelper
+
+GLOBAL_TABLES = {"readme", "todo", "ref", "cyc"}
 
 class HarborMaster:
     """HarborMaster class."""
@@ -8,6 +10,7 @@ class HarborMaster:
         self.gc = creds
         self.db = db
         self.sheetsHelper = SheetsHelper(creds)
+        self.populate_harbor_db()
 
     def read(self, sheet, wsheet):
         """Return rows as a list of dicts, with first row being the keys"""
@@ -41,7 +44,6 @@ class HarborMaster:
             # values.append(str(tuple(row[key] for key in keys)))
             quoted = tuple(f'"{row[key]}"' for key in keys)
             values.append(f"({','.join(quoted)})")
-        print(values)
         self.db.run(f"INSERT INTO {table} VALUES {','.join(values)}")
 
     def create_and_populate_global_table(self, name):
@@ -71,3 +73,11 @@ class HarborMaster:
         for row in rows:
             values.append(str(tuple(row[key] for key in keys)))
         self.db.run(f"INSERT INTO {table} VALUES {','.join(values)}")
+
+    def populate_harbor_db(self):
+        """Populate all global and local tables for ships in harbor."""
+        [self.create_and_populate_global_table(t) for t in GLOBAL_TABLES]
+        for ship, wsheets in self.registered_ships().items():
+            for wsheet in wsheets:
+                if wsheet not in GLOBAL_TABLES:
+                    self.create_and_populate_local_table(ship, wsheet)
