@@ -10,6 +10,7 @@ class HarborMaster:
 
     def read(self, sheet, wsheet):
         """Return rows as a list of dicts, with first row being the keys"""
+        sheet = f"s.{sheet}" if not sheet.startswith("s.") else sheet
         return self.sheetsHelper.read(sheet, wsheet)
 
     def worksheets(self, sheet):
