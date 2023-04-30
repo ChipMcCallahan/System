@@ -38,5 +38,5 @@ class OverdueChecker:
                 overdue.append((amount_overdue, code, item['days'], item['max_date']))
         overdue.sort(reverse=True)
         for item in overdue:
-            print(f"{item[1].rjust(30)} ({item[2]}d), "
+            print(f"{item[1].rjust(30)} ({item[2]}d): "
                   f"factor is {item[0]:8.2f} ({item[3]:3d})")
