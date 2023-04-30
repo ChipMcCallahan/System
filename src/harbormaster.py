@@ -39,7 +39,7 @@ class HarborMaster:
         values = []
         for row in rows:
             # values.append(str(tuple(row[key] for key in keys)))
-            quoted = tuple(f"'{row[key]}'" for key in keys)
+            quoted = tuple(f'"{row[key]}"' for key in keys)
             values.append(f"({','.join(quoted)})")
         print(values)
         self.db.run(f"INSERT INTO {table} VALUES {','.join(values)}")
