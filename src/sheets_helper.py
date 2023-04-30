@@ -64,3 +64,7 @@ class SheetsHelper:
                 obj[col] = row[i]
             objects.append(obj)
         return objects
+
+    def worksheets(self, sheet):
+        """Return a list of the worksheet names in this sheet."""
+        return [wsheet.title for wsheet in self.gc.open(sheet).worksheets()]
