@@ -17,7 +17,7 @@ class System:
 
     def overdue_check(self):
         """Perform all overdue checks and print result."""
-        return self.overdueChecker.check
+        return self.overdueChecker.check()
 
     def today(self):
         """Return today in PST."""

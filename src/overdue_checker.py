@@ -24,9 +24,9 @@ class OverdueChecker:
             f"  CAST(julianday('{self.today()}') - julianday(max_date) AS INTEGER) AS stale, "
             f"  CAST([cyc].days AS INTEGER) AS days "
             f"FROM [cyc] "
-            f"  LEFT JOIN (SELECT item, MAX(date) AS max_date "
+            f"  LEFT JOIN (SELECT code, MAX(date) AS max_date "
             f"             FROM Logs GROUP BY 1) AS MaxLogs "
-            f"  ON [cyc].code = MaxLogs.code"
+            f"  ON [cyc].item = MaxLogs.code"
         )
         current_state = self.db.run(query)
         overdue = []
