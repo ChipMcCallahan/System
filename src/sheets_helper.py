@@ -1,13 +1,6 @@
 """SheetsHelper class, for use in Colab notebooks."""
 # pylint: disable=invalid-name,too-few-public-methods,undefined-variable,exec-used,protected-access,import-error,dangerous-default-value
 
-# from google.colab import auth
-# from google.auth import default
-# auth.authenticate_user()
-# creds, _ = default()
-# gc = gspread.authorize(creds)
-# sheets_helper = SheetsHelper(gc)
-
 DEFAULT_WSHEETS = {'readme': 1, 'todo': 1, 'ref': 2, 'cyc': 2}
 COL_WIDTH = 500
 DEFAULT_N_ROWS = 100
