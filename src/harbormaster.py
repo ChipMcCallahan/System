@@ -4,8 +4,9 @@ from .sheets_helper import SheetsHelper
 
 class HarborMaster:
     """HarborMaster class."""
-    def __init__(self, creds):
+    def __init__(self, creds, db):
         self.gc = creds
+        self.db = db
         self.sheetsHelper = SheetsHelper(creds)
 
     def read(self, sheet, wsheet):
@@ -22,3 +23,25 @@ class HarborMaster:
         along with their 'cargo' (worksheets)."""
         return {f"s.{ship['ship']}": self.sheetsHelper.worksheets(f"s.{ship['ship']}")
                 for ship in self.sheetsHelper.read('s.core', 'ship-register')}
+
+    def create_and_populate_local_table(self, ship, wsheet):
+        """Populate in harbor db a worksheet specific to a single ship."""
+        rows = self.read(ship, wsheet)
+        table = f"[{wsheet}]"
+        self.db.run(f"DROP TABLE IF EXISTS {table}")
+
+        if len(rows) == 0:
+            return
+        keys = list(rows[0].keys())
+        fields = [f"{key} TEXT" for key in keys]
+        self.db.run(f"CREATE TABLE {table} ({','.join(fields)})")
+
+        values = []
+        for row in rows:
+            values.append(str(tuple(row[key] for key in keys)))
+        print(','.join(values))
+        self.db.run(f"INSERT INTO {table} VALUES {','.join(values)}")
+
+    def create_and_populate_global_table(self, name):
+        """Populate in harbor db worksheets shared by multiple ships"""
+        return name
