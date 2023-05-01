@@ -58,6 +58,7 @@ class System:
             amount += float(existing[0]['amount'])
         self.db.run(f"DELETE FROM {WORKOUT} WHERE exercise = '{workout}' and date = '{date}'")
         self.db.run(f"INSERT INTO {WORKOUT} VALUES ('{date}', '{workout}', '{amount}')")
+        self.log(workout, date=date, new_code=True)
 
     def log_ride(self, miles, *, date=None, overwrite=False):
         """Log a bike ride. Default is today, pass date= to change. Adds to existing 
