@@ -48,18 +48,26 @@ class System:
         self.db.run(f"INSERT INTO {LOGS} VALUES ('{next_id}', '{date}', '{code}', "
                                                f"'{str(description)}')")
 
+    def workout(self, workout, amount, *, date=None, overwrite=False):
+        """Log a workout. Default is today, pass date= to change. Adds to existing 
+           unless overwrite is True. """
+        date = str(parse(date).date() if date else self.today())
+        existing = self.db.run(f"SELECT * FROM {WORKOUT} "
+                               f"WHERE exercise = '{workout}' AND date = '{date}'")
+        if existing and not overwrite:
+            amount += float(existing[0]['amount'])
+        self.db.run(f"DELETE FROM {WORKOUT} WHERE exercise = '{workout}' and date = '{date}'")
+        self.db.run(f"INSERT INTO {WORKOUT} VALUES ('{date}', '{workout}', '{amount}')")
+
     def log_ride(self, miles, *, date=None, overwrite=False):
         """Log a bike ride. Default is today, pass date= to change. Adds to existing 
            unless overwrite is True. """
-        date = str(parse(date).date() if date else self.today())
-        ex = 'ride'
-        amt = miles
-        existing = self.db.run(f"SELECT * FROM {WORKOUT} "
-                               f"WHERE exercise = '{ex}' AND date = '{date}'")
-        if existing and not overwrite:
-            amt += float(existing[0]['amount'])
-        self.db.run(f"DELETE FROM {WORKOUT} WHERE exercise = '{ex}' and date = '{date}'")
-        self.db.run(f"INSERT INTO {WORKOUT} VALUES ('{date}', '{ex}', '{amt}')")
+        self.workout("ride", miles, date=date, overwrite=overwrite)
+
+    def log_run(self, miles, *, date=None, overwrite=False):
+        """Log a run. Default is today, pass date= to change. Adds to existing 
+           unless overwrite is True. """
+        self.workout("run", miles, date=date, overwrite=overwrite)
 
     def log_pool_specs(self, cl, ph, alk=None):
         """Log pH, Cl, and (optionally) alkalinity."""
