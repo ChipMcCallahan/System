@@ -1,6 +1,8 @@
 """System class"""
 # pylint: disable=invalid-name,too-few-public-methods
 
+import datetime
+from collections import defaultdict
 from dateutil.parser import parse
 from .harbormaster import HarborMaster
 from .overdue_checker import OverdueChecker
@@ -80,3 +82,47 @@ class System:
     def log_pool_notes(self, note):
         """Log notes for pool (e.g. chem adds)."""
         self.log("pool-notes", note)
+
+    def get_calendar_entry(self, d):
+        """Retrieve calendar info for date d."""
+        d = parse(d) if isinstance(d, str) else d
+        if not str(d.year) in self.harborMaster.worksheets("calendar"):
+            return None
+        results = self.db.run(f"SELECT * FROM [{d.year}] WHERE date = '{d.strftime('%Y-%m-%d')}'")
+        return results[0] if len(results) > 0 else None
+
+    def daily_flashcards(self):
+        """Return a list of daily flashcards to practice in Remnote."""
+        ships = [item['ship'] for item in self.db.all('[ship-register]')]
+        cards = []
+
+        berth_cards = defaultdict(list)
+        for i, ship in enumerate(ships):
+            berth = f"{i:03d}"
+            # Cards for which ships are in which berths.
+            berth_cards[berth].append(f"ship '{ship}' in berth {berth}.")
+
+            # Cards for non-standard worksheets on ships + their schemas.
+            wsheets = set(self.harborMaster.worksheets(ship)) \
+                      .difference({'readme', 'todo', 'ref', 'cyc'})
+            for wsheet in wsheets:
+                keys = list(self.harborMaster.read(ship, wsheet)[0].keys())
+                berth_cards[berth].append(f"({ship + ', ' + wsheet}) has schema {str(keys)}.")
+
+            # Cards for standard worksheets on ships.
+            for wsheet in ('readme', 'ref', 'cyc', 'todo'):
+                for item in self.harborMaster.read(ship, wsheet):
+                    berth_cards[berth].append(f"({ship}, {wsheet}): {str(item)}")
+
+        for berth, items in berth_cards.items():
+            for i, item in enumerate(items):
+                letter_index = f"{chr(i // 26 + ord('A'))}{chr(i % 26 + ord('A'))}" # AA, AB, etc
+                cards.append(f"- {berth}.{letter_index}>>{item}")
+
+        # Cards for next 30 calendar days
+        for i in range(30):
+            entry = self.get_calendar_entry(self.today() + datetime.timedelta(days=i))
+            cards.append(
+                f"- {entry['date']}>>{entry['color']}-{entry['weekday']}: {entry['event']}"
+            )
+        return cards
