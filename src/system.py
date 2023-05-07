@@ -91,6 +91,17 @@ class System:
         results = self.db.run(f"SELECT * FROM [{d.year}] WHERE date = '{d.strftime('%Y-%m-%d')}'")
         return results[0] if len(results) > 0 else None
 
+    def get_calendar_flashcards(self, start, n_days):
+        """Generate {n_days} calendar flashcards from {start}"""
+        start = parse(start) if isinstance(start, str) else start
+        cards = []
+        for i in range(n_days):
+            entry = self.get_calendar_entry(start + datetime.timedelta(days=i))
+            cards.append(
+                f"- {entry['date']}>>{entry['color']}-{entry['weekday']}: {entry['event']}"
+            )
+        return cards
+
     def daily_flashcards(self):
         """Return a list of daily flashcards to practice in Remnote."""
         ships = [item['ship'] for item in self.db.all('[ship-register]')]
@@ -120,9 +131,6 @@ class System:
                 cards.append(f"- {berth}.{letter_index}>>{item}")
 
         # Cards for next 30 calendar days
-        for i in range(30):
-            entry = self.get_calendar_entry(self.today() + datetime.timedelta(days=i))
-            cards.append(
-                f"- {entry['date']}>>{entry['color']}-{entry['weekday']}: {entry['event']}"
-            )
+        cards.extend(self.get_calendar_flashcards(self.today(), 30))
+
         return cards
