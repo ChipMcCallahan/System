@@ -19,6 +19,7 @@ class HarborMaster:
 
     def worksheets(self, sheet):
         """Return a list of the worksheet names in this sheet."""
+        sheet = f"s.{sheet}" if not sheet.startswith("s.") else sheet
         return self.sheetsHelper.worksheets(sheet)
 
     def registered_ships(self):
@@ -29,6 +30,7 @@ class HarborMaster:
 
     def create_and_populate_local_table(self, ship, wsheet):
         """Populate in harbor db a worksheet specific to a single ship."""
+        ship = f"s.{ship}" if not ship.startswith("s.") else ship
         rows = self.read(ship, wsheet)
         table = f"[{wsheet}]"
         self.db.run(f"DROP TABLE IF EXISTS {table}")
