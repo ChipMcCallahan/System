@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environment folder
+venv/
+.env/
+.venv/
+env/
+
+# macOS metadata
+.DS_Store
+
+# VSCode settings (optional - if you don't want to share local VSCode config)
+.vscode/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# MyPy
+.mypy_cache/
+
+# pyInstaller
+dist/
+build/
+*.spec
+
+# Logs
+*.log
+logs/
+
+# Local configuration files
+*.local
+*.env
+.env.*
