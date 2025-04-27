@@ -90,16 +90,16 @@ class SystemNodeDAO:
 
     def update(self, old: SystemNode, new: SystemNode) -> bool:
         """
-        Update a row only if the existing DB record matches the 'old' object.
-        This approach helps ensure no one changed it between read & update.
+        Update a row only if the existing DB record still matches old.ID, old.ParentID,
+        old.Status, and old.Importance.
+        (We do NOT compare Name, Description, Notes, Tags, or Metadata.)
         Returns True if exactly one row was updated, False otherwise.
         """
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
-            # We'll compare all non-null fields from 'old'
-            # For example, if old.Notes is None, we won't include it in the WHERE.
-            # But for simplicity here, let's compare *everything* including None.
+            # We update all fields (Name, Description, etc.) but only check concurrency
+            # on ID, ParentID, Status, Importance
             sql = """
             UPDATE SystemNode
             SET
@@ -114,17 +114,10 @@ class SystemNodeDAO:
             WHERE
                 ID = %s
                 AND ParentID <=> %s
-                AND Name = %s
-                AND Description <=> %s
-                AND Notes <=> %s
-                AND Tags <=> %s
-                AND Metadata <=> %s
                 AND Status <=> %s
                 AND Importance = %s
             """
-
-            # <=> is MySQL's null-safe equality operator (so NULL <=> NULL is true)
-            # We'll bind parameters in pairs for the SET (new) and the WHERE (old)
+            # The SET section uses the new node's data
             set_params = (
                 new.ParentID,
                 new.Name,
@@ -135,14 +128,10 @@ class SystemNodeDAO:
                 new.Status,
                 new.Importance
             )
+            # The WHERE section uses old node's ID, ParentID, Status, Importance
             where_params = (
                 old.ID,
                 old.ParentID,
-                old.Name,
-                old.Description,
-                old.Notes,
-                json.dumps(old.Tags) if old.Tags else None,
-                json.dumps(old.Metadata) if old.Metadata else None,
                 old.Status,
                 old.Importance
             )
@@ -157,7 +146,9 @@ class SystemNodeDAO:
 
     def delete(self, old: SystemNode) -> bool:
         """
-        Delete a row only if it matches the 'old' object in all fields.
+        Delete a row only if the existing DB record still matches old.ID, old.ParentID,
+        old.Status, and old.Importance.
+        (We do NOT compare Name, Description, Notes, Tags, or Metadata.)
         Returns True if exactly one row was deleted, False otherwise.
         """
         conn = self._get_connection()
@@ -168,22 +159,12 @@ class SystemNodeDAO:
             WHERE
                 ID = %s
                 AND ParentID <=> %s
-                AND Name = %s
-                AND Description <=> %s
-                AND Notes <=> %s
-                AND Tags <=> %s
-                AND Metadata <=> %s
                 AND Status <=> %s
                 AND Importance = %s
             """
             params = (
                 old.ID,
                 old.ParentID,
-                old.Name,
-                old.Description,
-                old.Notes,
-                json.dumps(old.Tags) if old.Tags else None,
-                json.dumps(old.Metadata) if old.Metadata else None,
                 old.Status,
                 old.Importance
             )

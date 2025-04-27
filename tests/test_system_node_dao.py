@@ -173,8 +173,8 @@ class TestSystemNodeDAO(unittest.TestCase):
         # The WHERE clause includes <=> for null-safe comparison
         # We won't check every substring, but you could.
 
-        # Check the parameter tuple: 8 for the SET, plus 9 in the WHERE = 17 total
-        self.assertEqual(len(params_called), 17, "Should have 17 parameters in total.")
+        # Check the parameter tuple: 8 for the SET, plus 4 in the WHERE = 12 total
+        self.assertEqual(len(params_called), 12, "Should have 12 parameters in total.")
         # Checking a few of them:
         self.assertEqual(params_called[0], new_node.ParentID)
         self.assertEqual(params_called[1], new_node.Name)
@@ -222,15 +222,12 @@ class TestSystemNodeDAO(unittest.TestCase):
         self.assertIn("DELETE FROM SystemNode", sql_called)
         normalized_sql = " ".join(sql_called.split())
         self.assertIn("WHERE ID = %s", normalized_sql)
-        self.assertEqual(len(params_called), 9, "DELETE uses 9 parameters for the WHERE condition")
+        self.assertEqual(len(params_called), 4, "DELETE uses 4 parameters for the WHERE condition")
 
         self.assertEqual(params_called[0], old_node.ID)
         self.assertEqual(params_called[1], old_node.ParentID)
-        self.assertEqual(params_called[2], old_node.Name)
-        self.assertEqual(params_called[3], old_node.Description)
-        # ...
-        self.assertEqual(params_called[5], '{"delete": true}')  # JSON for Tags
-        self.assertEqual(params_called[6], '{"key": "val"}')    # JSON for Metadata
+        self.assertEqual(params_called[2], old_node.Status)
+        self.assertEqual(params_called[3], old_node.Importance)
 
         mock_conn.commit.assert_called_once()
 
