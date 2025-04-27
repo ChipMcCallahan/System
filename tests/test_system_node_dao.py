@@ -4,7 +4,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-# Adjust these imports if your actual module paths differ
 from src.dao.system_node_dao import SystemNodeDAO
 from src.dao.system_node import SystemNode
 
@@ -33,7 +32,6 @@ class TestSystemNodeDAO(unittest.TestCase):
         Test that create() executes the correct SQL with the correct parameters,
         and returns the lastrowid.
         """
-        # Mock connection and cursor
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_connect.return_value = mock_conn
@@ -122,6 +120,58 @@ class TestSystemNodeDAO(unittest.TestCase):
         self.assertIn("SELECT", sql_called, "SQL should be a SELECT statement")
         self.assertIn("FROM SystemNode", sql_called)
         self.assertEqual(params_called, (101,), "Should SELECT by ID=101")
+        mock_conn.close.assert_called_once()
+
+    @patch("src.dao.system_node_dao.mysql.connector.connect")
+    def test_read_all_nodes(self, mock_connect: MagicMock) -> None:
+        """
+        Test that read_all() executes a SELECT for all rows and returns a list of SystemNodes.
+        """
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        mock_cursor.fetchall.return_value = [
+            {
+                "ID": 1,
+                "ParentID": None,
+                "Name": "RootNode",
+                "Description": None,
+                "Notes": None,
+                "Tags": '{"k1":"v1"}',
+                "Metadata": '{}',
+                "Status": None,
+                "Importance": 0
+            },
+            {
+                "ID": 2,
+                "ParentID": 1,
+                "Name": "ChildNode",
+                "Description": "desc",
+                "Notes": "notes",
+                "Tags": '{"child":"yes"}',
+                "Metadata": '{"extra":42}',
+                "Status": "Active",
+                "Importance": 2
+            }
+        ]
+
+        all_nodes = self.dao.read_all()
+        self.assertEqual(len(all_nodes), 2, "Should return 2 SystemNode objects")
+
+        # Verify each returned node
+        self.assertEqual(all_nodes[0].ID, 1)
+        self.assertEqual(all_nodes[0].Name, "RootNode")
+        self.assertEqual(all_nodes[0].Tags, {"k1": "v1"})
+        self.assertEqual(all_nodes[1].ID, 2)
+        self.assertEqual(all_nodes[1].Status, "Active")
+
+        mock_cursor.execute.assert_called_once()
+        sql_called = mock_cursor.execute.call_args[0][0]
+        self.assertIn("SELECT", sql_called)
+        self.assertIn("FROM SystemNode", sql_called)
+
         mock_conn.close.assert_called_once()
 
     @patch("src.dao.system_node_dao.mysql.connector.connect")

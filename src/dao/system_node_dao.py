@@ -88,6 +88,42 @@ class SystemNodeDAO:
         finally:
             conn.close()
 
+    def read_all(self) -> list[SystemNode]:
+        """
+        Fetch all rows from SystemNode. Returns a list of SystemNode objects.
+        """
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            sql = """
+                SELECT
+                    ID, ParentID, Name, Description, Notes,
+                    Tags, Metadata, Status, Importance
+                FROM SystemNode
+            """
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            cursor.close()
+
+            nodes = []
+            for row in rows:
+                node = SystemNode(
+                    ID=row["ID"],
+                    ParentID=row["ParentID"],
+                    Name=row["Name"],
+                    Description=row["Description"],
+                    Notes=row["Notes"],
+                    Tags=json.loads(row["Tags"]) if row["Tags"] else {},
+                    Metadata=json.loads(row["Metadata"]) if row["Metadata"] else {},
+                    Status=row["Status"],
+                    Importance=row["Importance"]
+                )
+                nodes.append(node)
+
+            return nodes
+        finally:
+            conn.close()
+
     def update(self, old: SystemNode, new: SystemNode) -> bool:
         """
         Update a row only if the existing DB record still matches old.ID, old.ParentID,

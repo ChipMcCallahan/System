@@ -73,6 +73,32 @@ def get_node(node_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/nodes", methods=["GET"])
+def get_all_nodes():
+    """
+    Returns a list of all SystemNodes as JSON.
+    """
+    try:
+        nodes = dao.read_all()  # call the new DAO method
+        # Convert each SystemNode into a dict
+        result = []
+        for node in nodes:
+            result.append({
+                "ID": node.ID,
+                "ParentID": node.ParentID,
+                "Name": node.Name,
+                "Description": node.Description,
+                "Notes": node.Notes,
+                "Tags": node.Tags,
+                "Metadata": node.Metadata,
+                "Status": node.Status,
+                "Importance": node.Importance
+            })
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # 3) UPDATE - PATCH /nodes/<id>
 #    Because your DAO does concurrency check with old & new, we expect "old" and "new" objects in JSON.
 @app.route("/nodes/<int:node_id>", methods=["PATCH"])
