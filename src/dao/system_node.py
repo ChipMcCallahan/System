@@ -13,3 +13,4 @@ class SystemNode:
     Metadata: Optional[Dict[str, Any]] = field(default_factory=dict)
     Status: Optional[str] = None
     Importance: int = 0
+    SortOrder: int = 0

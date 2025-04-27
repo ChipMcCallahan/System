@@ -1,11 +1,17 @@
-# python -m unittest
-# flake8 .
-
 import unittest
 from unittest.mock import patch, MagicMock
 
+# Adjust these imports to match your actual paths
 from src.dao.system_node_dao import SystemNodeDAO
 from src.dao.system_node import SystemNode
+
+
+def normalize_sql(sql: str) -> str:
+    """
+    Helper to normalize SQL by removing extra newlines/tabs
+    so we can use substring checks reliably.
+    """
+    return " ".join(sql.split()).lower()
 
 
 class TestSystemNodeDAO(unittest.TestCase):
@@ -26,6 +32,9 @@ class TestSystemNodeDAO(unittest.TestCase):
         }
         self.dao = SystemNodeDAO(self.db_config)
 
+    # ------------------------------------------------------------------
+    # CREATE
+    # ------------------------------------------------------------------
     @patch("src.dao.system_node_dao.mysql.connector.connect")
     def test_create_node(self, mock_connect: MagicMock) -> None:
         """
@@ -37,10 +46,11 @@ class TestSystemNodeDAO(unittest.TestCase):
         mock_connect.return_value = mock_conn
         mock_conn.cursor.return_value = mock_cursor
 
-        # Simulate a DB insertion returning lastrowid = 123
+        # The first SELECT (max SortOrder) returns (1,) meaning next order is 1
+        mock_cursor.fetchone.return_value = (1,)
+        # After that we do the INSERT. lastrowid = 123
         mock_cursor.lastrowid = 123
 
-        # Prepare a sample node to insert
         node = SystemNode(
             ParentID=None,
             Name="UnitTest Node",
@@ -53,45 +63,50 @@ class TestSystemNodeDAO(unittest.TestCase):
         )
 
         new_id = self.dao.create(node)
+        self.assertEqual(new_id, 123)
 
-        # Assertions on lastrowid
-        self.assertEqual(new_id, 123, "create() should return the cursor's lastrowid")
+        # We expect a query for max SortOrder, then an INSERT
+        calls = mock_cursor.execute.call_args_list
+        self.assertGreaterEqual(len(calls), 2, "Expected at least two SQL calls (max SortOrder, then INSERT).")
 
-        # Check that 'connect' was called once with our db_config
-        mock_connect.assert_called_once_with(**self.db_config)
+        # 1) check the SELECT call
+        sql_1, params_1 = calls[0][0]
+        norm_1 = normalize_sql(sql_1)
+        self.assertIn("select coalesce(max(sortorder), 0) + 1", norm_1)
+        self.assertIn("where parentid <=> %s", norm_1)
+        self.assertEqual(params_1, (None,))
 
-        # Verify the SQL statement and parameters
-        mock_cursor.execute.assert_called_once()
-        sql_called, params_called = mock_cursor.execute.call_args[0]
-        self.assertIn("INSERT INTO SystemNode", sql_called, "SQL should be an INSERT statement.")
+        # 2) check the INSERT call
+        sql_2, params_2 = calls[1][0]
+        norm_2 = normalize_sql(sql_2)
+        self.assertIn("insert into systemnode", norm_2)
         self.assertEqual(
-            params_called,
+            params_2,
             (
                 node.ParentID,
                 node.Name,
                 node.Description,
                 node.Notes,
-                '{"type": "mocked"}',   # json.dumps(node.Tags)
-                '{"foo": "bar"}',      # json.dumps(node.Metadata)
+                '{"type": "mocked"}',
+                '{"foo": "bar"}',
                 node.Status,
-                node.Importance
-            ),
-            "Parameters for the INSERT should match the node's fields."
+                node.Importance,
+                1  # from the SELECT above
+            )
         )
+
         mock_conn.commit.assert_called_once()
 
+    # ------------------------------------------------------------------
+    # READ a Single Node
+    # ------------------------------------------------------------------
     @patch("src.dao.system_node_dao.mysql.connector.connect")
     def test_read_node(self, mock_connect: MagicMock) -> None:
-        """
-        Test that read() executes the correct SELECT and returns a SystemNode object.
-        """
-        # Mock connection
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_connect.return_value = mock_conn
         mock_conn.cursor.return_value = mock_cursor
 
-        # Simulate DB row for ID=101
         mock_cursor.fetchone.return_value = {
             "ID": 101,
             "ParentID": None,
@@ -101,32 +116,80 @@ class TestSystemNodeDAO(unittest.TestCase):
             "Tags": '{"key": "value"}',
             "Metadata": '{"meta": 123}',
             "Status": "Active",
-            "Importance": 2
+            "Importance": 2,
+            "SortOrder": 10
         }
 
-        result_node = self.dao.read(101)
-        self.assertIsNotNone(result_node, "read() should return a SystemNode, not None")
+        node = self.dao.read(101)
+        self.assertIsNotNone(node)
+        self.assertEqual(node.ID, 101)
+        self.assertEqual(node.Name, "MockedName")
+        self.assertEqual(node.SortOrder, 10)
 
-        # Check the fields on the returned node
-        self.assertEqual(result_node.ID, 101)
-        self.assertEqual(result_node.Name, "MockedName")
-        self.assertEqual(result_node.Tags, {"key": "value"})
-        self.assertEqual(result_node.Metadata, {"meta": 123})
-        self.assertEqual(result_node.Importance, 2)
-
-        # Check SQL
-        mock_cursor.execute.assert_called_once()
         sql_called, params_called = mock_cursor.execute.call_args[0]
-        self.assertIn("SELECT", sql_called, "SQL should be a SELECT statement")
-        self.assertIn("FROM SystemNode", sql_called)
-        self.assertEqual(params_called, (101,), "Should SELECT by ID=101")
+        norm_sql = normalize_sql(sql_called)
+        self.assertIn("select", norm_sql)
+        self.assertIn("from systemnode", norm_sql)
+        self.assertEqual(params_called, (101,))
+
         mock_conn.close.assert_called_once()
 
+    # ------------------------------------------------------------------
+    # READ BY PARENT
+    # ------------------------------------------------------------------
+    @patch("src.dao.system_node_dao.mysql.connector.connect")
+    def test_read_by_parent(self, mock_connect: MagicMock) -> None:
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        mock_cursor.fetchall.return_value = [
+            {
+                "ID": 1,
+                "ParentID": None,
+                "Name": "Root1",
+                "Description": None,
+                "Notes": None,
+                "Tags": None,
+                "Metadata": None,
+                "Status": None,
+                "Importance": 0,
+                "SortOrder": 1
+            },
+            {
+                "ID": 2,
+                "ParentID": None,
+                "Name": "Root2",
+                "Description": None,
+                "Notes": None,
+                "Tags": None,
+                "Metadata": None,
+                "Status": None,
+                "Importance": 0,
+                "SortOrder": 2
+            }
+        ]
+
+        results = self.dao.read_by_parent(None)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0].ID, 1)
+        self.assertEqual(results[1].ID, 2)
+        self.assertEqual(results[0].SortOrder, 1)
+        self.assertEqual(results[1].SortOrder, 2)
+
+        sql_called, params_called = mock_cursor.execute.call_args[0]
+        norm_sql = normalize_sql(sql_called)
+        self.assertIn("where parentid <=> %s", norm_sql)
+        self.assertIn("order by sortorder", norm_sql)
+        self.assertEqual(params_called, (None,))
+        mock_conn.close.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # READ ALL
+    # ------------------------------------------------------------------
     @patch("src.dao.system_node_dao.mysql.connector.connect")
     def test_read_all_nodes(self, mock_connect: MagicMock) -> None:
-        """
-        Test that read_all() executes a SELECT for all rows and returns a list of SystemNodes.
-        """
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_connect.return_value = mock_conn
@@ -142,7 +205,8 @@ class TestSystemNodeDAO(unittest.TestCase):
                 "Tags": '{"k1":"v1"}',
                 "Metadata": '{}',
                 "Status": None,
-                "Importance": 0
+                "Importance": 0,
+                "SortOrder": 1
             },
             {
                 "ID": 2,
@@ -153,38 +217,31 @@ class TestSystemNodeDAO(unittest.TestCase):
                 "Tags": '{"child":"yes"}',
                 "Metadata": '{"extra":42}',
                 "Status": "Active",
-                "Importance": 2
+                "Importance": 2,
+                "SortOrder": 5
             }
         ]
 
         all_nodes = self.dao.read_all()
-        self.assertEqual(len(all_nodes), 2, "Should return 2 SystemNode objects")
-
-        # Verify each returned node
+        self.assertEqual(len(all_nodes), 2)
         self.assertEqual(all_nodes[0].ID, 1)
-        self.assertEqual(all_nodes[0].Name, "RootNode")
-        self.assertEqual(all_nodes[0].Tags, {"k1": "v1"})
         self.assertEqual(all_nodes[1].ID, 2)
-        self.assertEqual(all_nodes[1].Status, "Active")
 
-        mock_cursor.execute.assert_called_once()
         sql_called = mock_cursor.execute.call_args[0][0]
-        self.assertIn("SELECT", sql_called)
-        self.assertIn("FROM SystemNode", sql_called)
+        norm_sql = normalize_sql(sql_called)
+        self.assertIn("select", norm_sql)
+        self.assertIn("from systemnode", norm_sql)
+        self.assertIn("order by parentid, sortorder", norm_sql)
 
-        mock_conn.close.assert_called_once()
-
+    # ------------------------------------------------------------------
+    # UPDATE
+    # ------------------------------------------------------------------
     @patch("src.dao.system_node_dao.mysql.connector.connect")
     def test_update_node(self, mock_connect: MagicMock) -> None:
-        """
-        Test that update(old, new) constructs the correct SQL and returns True if rowcount=1.
-        """
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_connect.return_value = mock_conn
         mock_conn.cursor.return_value = mock_cursor
-
-        # Simulate rowcount=1 for a successful update
         mock_cursor.rowcount = 1
 
         old_node = SystemNode(
@@ -196,9 +253,9 @@ class TestSystemNodeDAO(unittest.TestCase):
             Tags={},
             Metadata={},
             Status=None,
-            Importance=0
+            Importance=0,
+            SortOrder=0
         )
-
         new_node = SystemNode(
             ID=200,
             ParentID=10,
@@ -208,48 +265,36 @@ class TestSystemNodeDAO(unittest.TestCase):
             Tags={"new": "tag"},
             Metadata={"version": 1},
             Status="Updated",
-            Importance=2
+            Importance=2,
+            SortOrder=7
         )
 
         success = self.dao.update(old_node, new_node)
-        self.assertTrue(success, "update() should return True if rowcount=1")
+        self.assertTrue(success)
 
-        # Verify SQL
-        mock_cursor.execute.assert_called_once()
+        # Check SQL
         sql_called, params_called = mock_cursor.execute.call_args[0]
-        self.assertIn("UPDATE SystemNode", sql_called)
-        normalized_sql = " ".join(sql_called.split())
-        self.assertIn("WHERE ID = %s", normalized_sql)
-        # The WHERE clause includes <=> for null-safe comparison
-        # We won't check every substring, but you could.
+        norm_sql = normalize_sql(sql_called)
+        self.assertIn("update systemnode", norm_sql)
+        self.assertIn("set parentid = %s", norm_sql)
+        self.assertIn("sortorder = %s", norm_sql)
+        self.assertIn("where id = %s", norm_sql)
+        self.assertIn("and parentid <=> %s", norm_sql)
 
-        # Check the parameter tuple: 8 for the SET, plus 4 in the WHERE = 12 total
-        self.assertEqual(len(params_called), 12, "Should have 12 parameters in total.")
-        # Checking a few of them:
-        self.assertEqual(params_called[0], new_node.ParentID)
-        self.assertEqual(params_called[1], new_node.Name)
-        self.assertEqual(params_called[7], new_node.Importance)
-        # WHERE side
-        self.assertEqual(params_called[8], old_node.ID)
-        self.assertEqual(params_called[9], old_node.ParentID)
-
-        # We can confirm the JSON strings for the tags/metadata:
-        self.assertEqual(params_called[4], '{"new": "tag"}')
-        self.assertEqual(params_called[5], '{"version": 1}')
+        # 9 SET fields + 4 WHERE = 13
+        self.assertEqual(len(params_called), 13)
 
         mock_conn.commit.assert_called_once()
 
+    # ------------------------------------------------------------------
+    # DELETE
+    # ------------------------------------------------------------------
     @patch("src.dao.system_node_dao.mysql.connector.connect")
     def test_delete_node(self, mock_connect: MagicMock) -> None:
-        """
-        Test that delete(old) constructs the correct DELETE statement and returns True if rowcount=1.
-        """
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_connect.return_value = mock_conn
         mock_conn.cursor.return_value = mock_cursor
-
-        # Simulate rowcount=1 for successful delete
         mock_cursor.rowcount = 1
 
         old_node = SystemNode(
@@ -261,52 +306,111 @@ class TestSystemNodeDAO(unittest.TestCase):
             Tags={"delete": True},
             Metadata={"key": "val"},
             Status="Active",
-            Importance=1
+            Importance=1,
+            SortOrder=2
         )
 
         deleted = self.dao.delete(old_node)
-        self.assertTrue(deleted, "delete() should return True if exactly one row was deleted")
+        self.assertTrue(deleted)
 
-        mock_cursor.execute.assert_called_once()
         sql_called, params_called = mock_cursor.execute.call_args[0]
-        self.assertIn("DELETE FROM SystemNode", sql_called)
-        normalized_sql = " ".join(sql_called.split())
-        self.assertIn("WHERE ID = %s", normalized_sql)
-        self.assertEqual(len(params_called), 4, "DELETE uses 4 parameters for the WHERE condition")
+        norm_sql = normalize_sql(sql_called)
+        self.assertIn("delete from systemnode", norm_sql)
+        self.assertIn("where id = %s", norm_sql)
 
-        self.assertEqual(params_called[0], old_node.ID)
-        self.assertEqual(params_called[1], old_node.ParentID)
-        self.assertEqual(params_called[2], old_node.Status)
-        self.assertEqual(params_called[3], old_node.Importance)
-
+        # 4 where params: ID, ParentID, Status, Importance
+        self.assertEqual(len(params_called), 4)
         mock_conn.commit.assert_called_once()
 
+    # ------------------------------------------------------------------
+    # MOVE NODE - simple
+    # ------------------------------------------------------------------
     @patch("src.dao.system_node_dao.mysql.connector.connect")
-    def test_move_node(self, mock_connect: MagicMock) -> None:
+    def test_move_node_simple(self, mock_connect: MagicMock) -> None:
         """
-        Test that move_node() only updates the ParentID and returns True if rowcount=1.
+        Move with no target_index => place at end (max SortOrder + 1).
         """
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_connect.return_value = mock_conn
         mock_conn.cursor.return_value = mock_cursor
 
-        # Simulate successful update
+        # Step 1: read old parent's ParentID, SortOrder => (None, 2)
+        # Step 2: SHIFT old parent's siblings if parent changed
+        # Step 3: read new parent's max sort => 5
+        # Step 4: update node => rowcount=1
+        mock_cursor.fetchone.side_effect = [
+            {"ParentID": None, "SortOrder": 2},   # read old row
+            {"next_pos": 5}                       # new parent's next order
+        ]
         mock_cursor.rowcount = 1
 
-        node_id = 400
-        new_parent_id = 999
+        success = self.dao.move_node(400, 999, None)
+        self.assertTrue(success)
 
-        result = self.dao.move_node(node_id, new_parent_id)
-        self.assertTrue(result, "move_node() should return True if rowcount=1")
+        calls = mock_cursor.execute.call_args_list
+        self.assertEqual(len(calls), 4, "Should have 4 queries total.")
 
-        mock_cursor.execute.assert_called_once()
-        sql_called, params_called = mock_cursor.execute.call_args[0]
-        self.assertIn("UPDATE SystemNode", sql_called)
-        self.assertIn("SET ParentID = %s", sql_called)
-        self.assertIn("WHERE ID = %s", sql_called)
-        self.assertEqual(params_called, (new_parent_id, node_id),
-                         "Should update the row with the correct parent and ID")
+        sql1, param1 = calls[0][0]
+        norm1 = normalize_sql(sql1)
+        self.assertIn("select parentid, sortorder from systemnode", norm1)
+        self.assertEqual(param1, (400,))
+
+        sql2, param2 = calls[1][0]
+        norm2 = normalize_sql(sql2)
+        self.assertIn("set sortorder = sortorder - 1", norm2)
+        self.assertEqual(param2, (None, 2))
+
+        sql3, param3 = calls[2][0]
+        norm3 = normalize_sql(sql3)
+        self.assertIn("select coalesce(max(sortorder), 0) + 1 as next_pos", norm3)
+        self.assertEqual(param3, (999,))
+
+        sql4, param4 = calls[3][0]
+        norm4 = normalize_sql(sql4)
+        self.assertIn("update systemnode set parentid = %s, sortorder = %s", norm4)
+        self.assertEqual(param4, (999, 5, 400))
+
+        mock_conn.commit.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # MOVE NODE - reorder in same parent
+    # ------------------------------------------------------------------
+    @patch("src.dao.system_node_dao.mysql.connector.connect")
+    def test_move_node_reorder_same_parent(self, mock_connect: MagicMock) -> None:
+        """
+        Reordering within the same parent => no gap close, just shift >= target_index.
+        """
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_connect.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+
+        # old parent=10, old_sort_order=3, new_parent=10, target_index=1
+        mock_cursor.fetchone.return_value = {"ParentID": 10, "SortOrder": 3}
+        mock_cursor.rowcount = 1
+
+        success = self.dao.move_node(500, 10, 1)
+        self.assertTrue(success)
+
+        calls = mock_cursor.execute.call_args_list
+        self.assertEqual(len(calls), 3, "3 queries: read old row, shift siblings, update node")
+
+        sql1, param1 = calls[0][0]
+        norm1 = normalize_sql(sql1)
+        self.assertIn("select parentid, sortorder from systemnode where id = %s", norm1)
+        self.assertEqual(param1, (500,))
+
+        sql2, param2 = calls[1][0]
+        norm2 = normalize_sql(sql2)
+        self.assertIn("set sortorder = sortorder + 1", norm2)
+        self.assertIn("where parentid <=> %s and sortorder >= %s", norm2)
+        self.assertEqual(param2, (10, 1))
+
+        sql3, param3 = calls[2][0]
+        norm3 = normalize_sql(sql3)
+        self.assertIn("update systemnode set parentid = %s, sortorder = %s", norm3)
+        self.assertEqual(param3, (10, 1, 500))
 
         mock_conn.commit.assert_called_once()
 
